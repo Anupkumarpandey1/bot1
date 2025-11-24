@@ -2,10 +2,16 @@ import os
 import asyncio
 import logging
 import requests
+import re
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 import yt_dlp
 import instaloader
+try:
+    from pytube import YouTube
+    PYTUBE_AVAILABLE = True
+except ImportError:
+    PYTUBE_AVAILABLE = False
 
 # --- CONFIGURATION ---
 # Get token from environment variable (for security on Render)
@@ -19,108 +25,119 @@ RENDER_URL = os.getenv("RENDER_URL", "https://your-app-name.onrender.com/ping")
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 
+# --- HELPER FUNCTIONS ---
+def extract_video_id(url):
+    """Extract YouTube video ID from URL"""
+    patterns = [
+        r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)',
+        r'youtube\.com\/v\/([^&\n?#]+)',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
 # --- DOWNLOADER FUNCTIONS ---
 
-async def download_youtube(url, message: types.Message):
-    status_msg = await message.reply("⏳ Finding a video under 50MB (720p)...")
+async def download_tiktok(url, message: types.Message):
+    status_msg = await message.reply("⏳ Downloading TikTok video...")
     
-    # SETTINGS: Force 720p or lower, and strictly under 50MB + bypass bot detection
     ydl_opts = {
         'outtmpl': 'downloads/%(title)s.%(ext)s',
-        'format': 'best[ext=mp4][height<=720][filesize<50M] / best[ext=mp4][height<=480][filesize<50M] / worst[ext=mp4]',
+        'format': 'best[ext=mp4][filesize<50M]/best[filesize<50M]/best',
         'noplaylist': True,
-        # Anti-bot detection headers
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-us,en;q=0.5',
-            'Accept-Encoding': 'gzip,deflate',
-            'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-            'Keep-Alive': '300',
-            'Connection': 'keep-alive',
-        },
-        # Additional anti-detection options
-        'extractor_args': {
-            'youtube': {
-                'skip': ['hls', 'dash'],
-                'player_skip': ['js'],
-            }
-        },
-        # Retry options
-        'retries': 3,
-        'fragment_retries': 3,
-        'sleep_interval': 1,
-        'max_sleep_interval': 5,
+        'quiet': True,
     }
     
     filename = None
     try:
-        # Run the download with anti-bot detection
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-        # Check if file exists and check size
         if filename and os.path.exists(filename):
-            file_size = os.path.getsize(filename) / (1024 * 1024) # Convert bytes to MB
+            file_size = os.path.getsize(filename) / (1024 * 1024)
             
             if file_size > 50:
-                await status_msg.edit_text(f"❌ Video is too big ({file_size:.1f}MB). Telegram limit is 50MB.")
+                await status_msg.edit_text(f"❌ Video is too big ({file_size:.1f}MB).")
                 os.remove(filename)
             else:
                 await status_msg.edit_text("Uploading... 🚀")
                 await message.reply_video(
                     video=types.FSInputFile(filename), 
-                    caption=f"✅ {info.get('title', 'Video')}\nResolution: 720p (or best fit)\n🤖 @Reebuddybot"
+                    caption=f"✅ {info.get('title', 'TikTok Video')}\n🤖 @Reebuddybot"
                 )
-                os.remove(filename) # Delete file from laptop after sending
+                os.remove(filename)
                 await status_msg.delete()
         else:
-            await status_msg.edit_text("❌ Could not download a suitable format under 50MB.")
+            await status_msg.edit_text("❌ Could not download this TikTok video.")
             
     except Exception as e:
-        error_msg = str(e)
-        if "Sign in to confirm" in error_msg or "bot" in error_msg.lower():
-            # Try alternative method for bot-detected videos
-            try:
-                await status_msg.edit_text("⏳ Trying alternative method...")
-                
-                # Simplified options for bot-detected videos
-                simple_opts = {
-                    'outtmpl': 'downloads/%(title)s.%(ext)s',
-                    'format': 'worst[ext=mp4]/worst',
-                    'noplaylist': True,
-                    'quiet': True,
-                    'no_warnings': True,
-                }
-                
-                with yt_dlp.YoutubeDL(simple_opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
-                    filename = ydl.prepare_filename(info)
-                    
-                if filename and os.path.exists(filename):
-                    file_size = os.path.getsize(filename) / (1024 * 1024)
-                    if file_size > 50:
-                        await status_msg.edit_text(f"❌ Video is too big ({file_size:.1f}MB). Try a shorter video.")
-                        os.remove(filename)
-                    else:
-                        await status_msg.edit_text("Uploading... 🚀")
-                        await message.reply_video(
-                            video=types.FSInputFile(filename), 
-                            caption=f"✅ {info.get('title', 'Video')}\n🤖 @Reebuddybot"
-                        )
-                        os.remove(filename)
-                        await status_msg.delete()
-                else:
-                    await status_msg.edit_text("❌ Could not download this video. YouTube may have restricted it.")
-                    
-            except Exception as e2:
-                await status_msg.edit_text("❌ YouTube has restricted this video. Try another link or a different video.")
-        else:
-            await status_msg.edit_text(f"❌ Error: {error_msg}")
-            
+        await status_msg.edit_text(f"❌ TikTok Error: {str(e)}")
         if filename and os.path.exists(filename):
             os.remove(filename)
+
+async def download_twitter(url, message: types.Message):
+    status_msg = await message.reply("⏳ Downloading Twitter video...")
+    
+    ydl_opts = {
+        'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'format': 'best[ext=mp4][filesize<50M]/best[filesize<50M]/best',
+        'noplaylist': True,
+        'quiet': True,
+    }
+    
+    filename = None
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            
+        if filename and os.path.exists(filename):
+            file_size = os.path.getsize(filename) / (1024 * 1024)
+            
+            if file_size > 50:
+                await status_msg.edit_text(f"❌ Video is too big ({file_size:.1f}MB).")
+                os.remove(filename)
+            else:
+                await status_msg.edit_text("Uploading... 🚀")
+                await message.reply_video(
+                    video=types.FSInputFile(filename), 
+                    caption=f"✅ {info.get('title', 'Twitter Video')}\n🤖 @Reebuddybot"
+                )
+                os.remove(filename)
+                await status_msg.delete()
+        else:
+            await status_msg.edit_text("❌ Could not download this Twitter video.")
+            
+    except Exception as e:
+        await status_msg.edit_text(f"❌ Twitter Error: {str(e)}")
+        if filename and os.path.exists(filename):
+            os.remove(filename)
+
+async def download_youtube(url, message: types.Message):
+    status_msg = await message.reply("⚡ YouTube has become very restrictive lately...")
+    
+    # Provide helpful alternatives instead of failing
+    video_id = extract_video_id(url)
+    
+    await status_msg.edit_text(
+        "🚫 **YouTube Download Currently Unavailable**\n\n"
+        "YouTube has implemented strict bot detection that blocks most download attempts.\n\n"
+        "**Alternative Solutions:**\n"
+        "• Use Instagram/TikTok links instead (they work!)\n"
+        "• Try @SaveVideoBot or @YTSaveBot\n"
+        "• Use online tools like y2mate.com\n"
+        "• Download on your phone with apps like Snaptube\n\n"
+        "**This bot works great with:**\n"
+        "✅ Instagram Reels\n"
+        "✅ TikTok videos\n"
+        "✅ Twitter videos\n"
+        "✅ Facebook videos\n\n"
+        "Sorry for the inconvenience! 😔"
+    )
 
 async def download_instagram(url, message: types.Message):
     status_msg = await message.reply("⏳ Fetching Instagram content...")
@@ -153,9 +170,40 @@ async def download_instagram(url, message: types.Message):
 
 # --- BOT HANDLERS ---
 
+@dp.message(Command("help"))
+async def cmd_help(message: types.Message):
+    await message.answer(
+        "🆘 **Help & FAQ**\n\n"
+        "**Why doesn't YouTube work?**\n"
+        "YouTube has implemented very strict bot detection that blocks most automated downloads. This affects all download bots, not just ours.\n\n"
+        "**What works perfectly:**\n"
+        "✅ Instagram Reels & Posts\n"
+        "✅ TikTok videos\n"
+        "✅ Twitter/X videos\n"
+        "✅ Facebook videos\n\n"
+        "**For YouTube videos, try:**\n"
+        "• @SaveVideoBot\n"
+        "• @YTSaveBot\n"
+        "• Online tools like y2mate.com\n"
+        "• Mobile apps like Snaptube\n\n"
+        "**Usage:** Just send me a link!\n"
+        "**File limit:** 50MB max\n"
+        "**Bot by:** @Reebuddybot"
+    )
+
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await message.answer("👋 Hi! Send me a **YouTube** or **Instagram** link.")
+    await message.answer(
+        "👋 **Welcome to Multi-Platform Video Downloader!**\n\n"
+        "**Supported Platforms:**\n"
+        "✅ Instagram (Reels & Posts)\n"
+        "✅ TikTok\n"
+        "✅ Twitter/X\n"
+        "✅ Facebook\n"
+        "⚠️ YouTube (Currently restricted)\n\n"
+        "**Just send me a link and I'll download it for you!**\n\n"
+        "🤖 @Reebuddybot"
+    )
 
 @dp.message(F.text)
 async def handle_link(message: types.Message):
@@ -165,8 +213,23 @@ async def handle_link(message: types.Message):
         await download_youtube(url, message)
     elif "instagram.com" in url:
         await download_instagram(url, message)
+    elif "tiktok.com" in url or "vm.tiktok.com" in url:
+        await download_tiktok(url, message)
+    elif "twitter.com" in url or "x.com" in url or "t.co" in url:
+        await download_twitter(url, message)
+    elif "facebook.com" in url or "fb.watch" in url:
+        await download_twitter(url, message)  # Facebook uses same method as Twitter
     else:
-        await message.reply("Please send a valid YouTube or Instagram link.")
+        await message.reply(
+            "🤔 **Unsupported Platform**\n\n"
+            "**Supported platforms:**\n"
+            "✅ Instagram\n"
+            "✅ TikTok\n" 
+            "✅ Twitter/X\n"
+            "✅ Facebook\n"
+            "⚠️ YouTube (Currently restricted)\n\n"
+            "Please send a link from one of these platforms!"
+        )
 
 # --- KEEP ALIVE FUNCTION ---
 async def keep_alive():
@@ -182,15 +245,31 @@ async def keep_alive():
 
 # --- MAIN ---
 async def main():
-    # Create downloads folder if it doesn't exist
-    if not os.path.exists("downloads"):
-        os.makedirs("downloads")
-    
-    # Start keep-alive loop in background
-    asyncio.create_task(keep_alive())
-    
-    print("🤖 Bot is online and keep-alive started...")
-    await dp.start_polling(bot)
+    try:
+        # Create downloads folder if it doesn't exist
+        if not os.path.exists("downloads"):
+            os.makedirs("downloads")
+        
+        # Test connection to Telegram API
+        print("🔄 Testing connection to Telegram...")
+        me = await bot.get_me()
+        print(f"✅ Connected successfully! Bot: @{me.username}")
+        
+        # Start keep-alive loop in background (only on Render)
+        if os.getenv("RENDER"):
+            asyncio.create_task(keep_alive())
+            print("🔄 Keep-alive started for Render deployment")
+        
+        print("🤖 Bot is online and ready!")
+        await dp.start_polling(bot)
+        
+    except Exception as e:
+        print(f"❌ Failed to start bot: {e}")
+        print("\n🔧 Troubleshooting:")
+        print("1. Check your internet connection")
+        print("2. Verify bot token is correct")
+        print("3. Try running on Render instead of locally")
+        print("4. Check if VPN/firewall is blocking Telegram")
 
 if __name__ == "__main__":
     asyncio.run(main())

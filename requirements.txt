@@ -4,3 +4,4 @@ instaloader
 fastapi
 uvicorn[standard]
 requests
+pytube
