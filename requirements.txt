@@ -1,8 +1,6 @@
-aiogram==3.3.0
-yt-dlp==2024.8.6
-instaloader==4.12
-fastapi==0.104.1
-uvicorn==0.24.0
-aiohttp==3.9.1
-pydantic==2.4.2
-typing-extensions==4.8.0
+aiogram==3.0.0
+yt-dlp
+instaloader
+fastapi
+uvicorn[standard]
+requests

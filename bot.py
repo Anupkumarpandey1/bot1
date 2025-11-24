@@ -1,7 +1,7 @@
 import os
 import asyncio
 import logging
-import aiohttp
+import requests
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 import yt_dlp
@@ -112,8 +112,7 @@ async def keep_alive():
     """Self-ping to keep Render service awake"""
     while True:
         try:
-            async with aiohttp.ClientSession() as session:
-                await session.get(RENDER_URL)
+            response = requests.get(RENDER_URL, timeout=10)
             print("✅ Pinged Render to stay awake!")
         except Exception as e:
             print(f"❌ Ping error: {e}")
