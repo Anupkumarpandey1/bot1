@@ -118,26 +118,168 @@ async def download_twitter(url, message: types.Message):
             os.remove(filename)
 
 async def download_youtube(url, message: types.Message):
-    status_msg = await message.reply("⚡ YouTube has become very restrictive lately...")
+    status_msg = await message.reply("⏳ Trying to download YouTube video...")
     
-    # Provide helpful alternatives instead of failing
-    video_id = extract_video_id(url)
+    # Multiple configurations to try
+    configs = [
+        # Method 1: Basic configuration
+        {
+            'outtmpl': 'downloads/%(title)s.%(ext)s',
+            'format': 'worst[ext=mp4][filesize<50M]/worst[filesize<50M]/worst',
+            'noplaylist': True,
+            'quiet': True,
+            'no_warnings': True,
+        },
+        # Method 2: With cookies simulation
+        {
+            'outtmpl': 'downloads/%(title)s.%(ext)s',
+            'format': 'worst[ext=mp4][filesize<50M]/worst[filesize<50M]/worst',
+            'noplaylist': True,
+            'quiet': True,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
+        },
+        # Method 3: Mobile user agent
+        {
+            'outtmpl': 'downloads/%(title)s.%(ext)s',
+            'format': 'worst[ext=mp4][filesize<50M]/worst[filesize<50M]/worst',
+            'noplaylist': True,
+            'quiet': True,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15',
+            },
+        },
+        # Method 4: Android client
+        {
+            'outtmpl': 'downloads/%(title)s.%(ext)s',
+            'format': 'worst[ext=mp4][filesize<50M]/worst[filesize<50M]/worst',
+            'noplaylist': True,
+            'quiet': True,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android'],
+                }
+            },
+        }
+    ]
     
-    await status_msg.edit_text(
-        "🚫 **YouTube Download Currently Unavailable**\n\n"
-        "YouTube has implemented strict bot detection that blocks most download attempts.\n\n"
-        "**Alternative Solutions:**\n"
-        "• Use Instagram/TikTok links instead (they work!)\n"
-        "• Try @SaveVideoBot or @YTSaveBot\n"
-        "• Use online tools like y2mate.com\n"
-        "• Download on your phone with apps like Snaptube\n\n"
-        "**This bot works great with:**\n"
-        "✅ Instagram Reels\n"
-        "✅ TikTok videos\n"
-        "✅ Twitter videos\n"
-        "✅ Facebook videos\n\n"
-        "Sorry for the inconvenience! 😔"
-    )
+    filename = None
+    success = False
+    
+    # Try each method
+    for i, config in enumerate(configs):
+        if success:
+            break
+            
+        try:
+            await status_msg.edit_text(f"⏳ Trying method {i+1}/4...")
+            
+            with yt_dlp.YoutubeDL(config) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                
+            if filename and os.path.exists(filename):
+                file_size = os.path.getsize(filename) / (1024 * 1024)
+                
+                if file_size > 50:
+                    await status_msg.edit_text(f"❌ Video is too big ({file_size:.1f}MB). Try a shorter video.")
+                    os.remove(filename)
+                    return
+                else:
+                    await status_msg.edit_text("Uploading... 🚀")
+                    await message.reply_video(
+                        video=types.FSInputFile(filename), 
+                        caption=f"✅ {info.get('title', 'YouTube Video')}\n🤖 @Reebuddybot"
+                    )
+                    os.remove(filename)
+                    await status_msg.delete()
+                    success = True
+                    return
+            else:
+                continue
+                
+        except Exception as e:
+            error_msg = str(e)
+            print(f"YouTube Method {i+1} failed: {error_msg}")
+            
+            # Clean up
+            if filename and os.path.exists(filename):
+                os.remove(filename)
+                filename = None
+            
+            # If last method, try pytube
+            if i == len(configs) - 1 and PYTUBE_AVAILABLE:
+                try:
+                    await status_msg.edit_text("⏳ Trying backup method...")
+                    
+                    yt = YouTube(url)
+                    # Try to get lowest quality to stay under 50MB
+                    stream = yt.streams.filter(file_extension='mp4', res='360p').first()
+                    if not stream:
+                        stream = yt.streams.filter(file_extension='mp4').order_by('resolution').first()
+                    
+                    if stream:
+                        # Clean filename
+                        safe_title = "".join(c for c in yt.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                        filename = f"downloads/{safe_title[:50]}.mp4"
+                        
+                        stream.download(output_path='downloads', filename=f"{safe_title[:50]}.mp4")
+                        
+                        if os.path.exists(filename):
+                            file_size = os.path.getsize(filename) / (1024 * 1024)
+                            if file_size > 50:
+                                await status_msg.edit_text(f"❌ Video is too big ({file_size:.1f}MB).")
+                                os.remove(filename)
+                            else:
+                                await status_msg.edit_text("Uploading... 🚀")
+                                await message.reply_video(
+                                    video=types.FSInputFile(filename), 
+                                    caption=f"✅ {yt.title}\n🤖 @Reebuddybot"
+                                )
+                                os.remove(filename)
+                                await status_msg.delete()
+                                return
+                except Exception as pytube_error:
+                    print(f"Pytube also failed: {pytube_error}")
+            
+            # All methods failed
+            if i == len(configs) - 1:
+                if "Sign in to confirm" in error_msg or "bot" in error_msg.lower():
+                    await status_msg.edit_text(
+                        "🚫 **YouTube Bot Detection Active**\n\n"
+                        "YouTube is currently blocking automated downloads from this server.\n\n"
+                        "**Working Alternatives:**\n"
+                        "🤖 @SaveVideoBot - Try this bot\n"
+                        "🤖 @YTSaveBot - Alternative bot\n"
+                        "🌐 y2mate.com - Online downloader\n"
+                        "🌐 savefrom.net - Web tool\n"
+                        "📱 Snaptube app - Mobile solution\n\n"
+                        "**This bot works perfectly with:**\n"
+                        "✅ Instagram Reels & Posts\n"
+                        "✅ TikTok Videos\n"
+                        "✅ Twitter Videos\n"
+                        "✅ Facebook Videos\n\n"
+                        "Try sending an Instagram or TikTok link! 😊"
+                    )
+                else:
+                    await status_msg.edit_text(
+                        "❌ **YouTube Download Failed**\n\n"
+                        "**Possible reasons:**\n"
+                        "• Video is private/age-restricted\n"
+                        "• Video is too long (>50MB)\n"
+                        "• Geographic restrictions\n"
+                        "• YouTube server issues\n\n"
+                        "**Try:**\n"
+                        "• A different YouTube video\n"
+                        "• Instagram/TikTok links (work better!)\n"
+                        "• Alternative bots: @SaveVideoBot\n\n"
+                        "**This bot excels at:**\n"
+                        "✅ Instagram ✅ TikTok ✅ Twitter ✅ Facebook"
+                    )
+            
+            continue
 
 async def download_instagram(url, message: types.Message):
     status_msg = await message.reply("⏳ Fetching Instagram content...")
@@ -200,8 +342,9 @@ async def cmd_start(message: types.Message):
         "✅ TikTok\n"
         "✅ Twitter/X\n"
         "✅ Facebook\n"
-        "⚠️ YouTube (Currently restricted)\n\n"
+        "🔄 YouTube (Multiple fallback methods)\n\n"
         "**Just send me a link and I'll download it for you!**\n\n"
+        "**Note:** YouTube has restrictions, but I'll try 4 different methods + backup!\n\n"
         "🤖 @Reebuddybot"
     )
 
