@@ -222,12 +222,12 @@ async def download_youtube_via_api(url, message: types.Message):
 async def download_youtube(url, message: types.Message):
     status_msg = await message.reply("🚀 Initializing advanced YouTube download...")
     
-    # ULTIMATE YouTube bypass methods - 8 different approaches!
+    # ULTIMATE YouTube bypass methods - 9 different approaches!
     methods = [
         # Method 1: Third-party API
         {"name": "External API", "func": "api"},
-        # Method 2: Cookies-based authentication
-        {"name": "Authenticated Session", "func": "cookies"},
+        # Method 2: Advanced cookies-based authentication
+        {"name": "Browser Simulation", "func": "cookies"},
         # Method 3: iOS client emulation
         {"name": "iOS Client", "func": "ios"},
         # Method 4: Android TV client
@@ -239,12 +239,14 @@ async def download_youtube(url, message: types.Message):
         # Method 7: Pytube fallback
         {"name": "Pytube Library", "func": "pytube"},
         # Method 8: Direct stream extraction
-        {"name": "Direct Stream", "func": "direct"}
+        {"name": "Advanced Stream", "func": "direct"},
+        # Method 9: Geographic bypass
+        {"name": "Geo Bypass", "func": "geo"}
     ]
     
     for i, method in enumerate(methods):
         try:
-            await status_msg.edit_text(f"⏳ Method {i+1}/8: {method['name']}...")
+            await status_msg.edit_text(f"⏳ Method {i+1}/9: {method['name']}...")
             
             filename = None
             
@@ -252,7 +254,7 @@ async def download_youtube(url, message: types.Message):
             if method["func"] == "api":
                 filename = await download_youtube_via_api(url, message)
             
-            # Method 2: Cookies-based authentication
+            # Method 2: Advanced cookies-based authentication
             elif method["func"] == "cookies":
                 filename = await try_cookies_method(url)
             
@@ -276,9 +278,13 @@ async def download_youtube(url, message: types.Message):
             elif method["func"] == "pytube":
                 filename = await try_pytube_method(url)
             
-            # Method 8: Direct stream extraction
+            # Method 8: Advanced direct stream extraction
             elif method["func"] == "direct":
                 filename = await try_direct_stream(url)
+            
+            # Method 9: Geographic bypass
+            elif method["func"] == "geo":
+                filename = await try_geo_bypass(url)
             
             # If method succeeded, upload the video
             if filename and os.path.exists(filename):
@@ -315,7 +321,7 @@ async def download_youtube(url, message: types.Message):
     
     # All methods failed
     await status_msg.edit_text(
-        "🚫 **All 8 YouTube Methods Failed**\n\n"
+        "🚫 **All 9 YouTube Methods Failed**\n\n"
         "YouTube has blocked this video from all automated download methods.\n\n"
         "**🔥 100% Working Alternatives:**\n\n"
         "**Telegram Bots (Recommended):**\n"
@@ -343,38 +349,66 @@ async def download_youtube(url, message: types.Message):
 
 # Advanced YouTube bypass methods
 async def try_cookies_method(url):
-    """Method 2: Cookies-based authentication"""
+    """Method 2: Advanced cookies-based authentication with real browser simulation"""
     try:
-        # Simulate browser cookies for authentication
+        # Create a comprehensive cookie set that mimics a real browser session
+        import time
+        import random
+        
+        # Generate realistic session cookies
+        session_id = ''.join(random.choices('0123456789abcdef', k=32))
+        visitor_id = ''.join(random.choices('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_', k=22))
+        
         cookies = {
-            'CONSENT': 'YES+cb.20210328-17-p0.en+FX+{}'.format(''.join(['%02x' % (i % 256) for i in range(16)])),
-            'VISITOR_INFO1_LIVE': 'dGVzdA',
-            'YSC': 'test123',
+            'CONSENT': f'YES+cb.20210328-17-p0.en+FX+{random.randint(100, 999)}',
+            'VISITOR_INFO1_LIVE': visitor_id,
+            'YSC': ''.join(random.choices('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_', k=11)),
+            'PREF': f'f4=4000000&tz=America.New_York&f5=30000&f6=8&f7=100',
+            'GPS': '1',
+            'ST-1gcxhu6': f'session_logininfo=AFmmF2swRgIhAI{session_id}',
+            '__Secure-3PAPISID': f'{random.randint(1000000000, 9999999999)}/{session_id}',
+            '__Secure-3PSID': f'g.a000{session_id}',
+            'SIDCC': f'AKEyXzW{session_id}',
+        }
+        
+        # Advanced headers that mimic real browser behavior
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'Cache-Control': 'max-age=0',
+            'Cookie': '; '.join([f'{k}={v}' for k, v in cookies.items()])
         }
         
         ydl_opts = {
             'outtmpl': 'downloads/cookies_%(title)s.%(ext)s',
-            'format': 'worst[ext=mp4][filesize<50M]/worst[filesize<50M]/worst',
+            'format': 'worst[ext=mp4][filesize<50M]/worst[filesize<50M]/18/17/worst',
             'noplaylist': True,
             'quiet': True,
             'no_warnings': True,
-            'cookiefile': None,  # We'll set cookies manually
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
-                'DNT': '1',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Cookie': '; '.join([f'{k}={v}' for k, v in cookies.items()])
-            },
+            'http_headers': headers,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['web'],
+                    'player_client': ['web', 'android'],
                     'skip': ['dash', 'hls'],
+                    'player_skip': ['configs'],
                 }
             },
+            # Additional options to bypass detection
+            'sleep_interval': 1,
+            'max_sleep_interval': 3,
+            'sleep_interval_requests': 1,
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -512,8 +546,22 @@ async def try_pytube_method(url):
         return None
 
 async def try_direct_stream(url):
-    """Method 8: Direct stream extraction"""
+    """Method 8: Direct stream extraction with advanced bypass"""
     try:
+        import time
+        import random
+        
+        # Multiple user agents to rotate
+        user_agents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/121.0',
+        ]
+        
+        selected_ua = random.choice(user_agents)
+        
         ydl_opts = {
             'outtmpl': 'downloads/direct_%(title)s.%(ext)s',
             'format': '18/17/worst[ext=mp4][filesize<50M]/worst[filesize<50M]/worst',
@@ -521,10 +569,75 @@ async def try_direct_stream(url):
             'quiet': True,
             'no_warnings': True,
             'prefer_free_formats': True,
+            'http_headers': {
+                'User-Agent': selected_ua,
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin',
+                'X-Forwarded-For': f'{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}',
+            },
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web', 'ios'],
+                    'player_client': ['android', 'web', 'ios', 'android_tv'],
                     'skip': ['dash'],
+                    'player_skip': ['js', 'configs'],
+                }
+            },
+            # Rate limiting to avoid detection
+            'sleep_interval': random.uniform(1, 3),
+            'max_sleep_interval': 5,
+            'sleep_interval_requests': random.uniform(0.5, 2),
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return ydl.prepare_filename(info)
+    except:
+        return None
+
+# Additional method: Try with different geographic headers
+async def try_geo_bypass(url):
+    """Method 9: Geographic bypass with different country headers"""
+    try:
+        import random
+        
+        # Different country configurations
+        countries = [
+            {'country': 'US', 'lang': 'en-US', 'tz': 'America/New_York'},
+            {'country': 'GB', 'lang': 'en-GB', 'tz': 'Europe/London'},
+            {'country': 'CA', 'lang': 'en-CA', 'tz': 'America/Toronto'},
+            {'country': 'AU', 'lang': 'en-AU', 'tz': 'Australia/Sydney'},
+            {'country': 'DE', 'lang': 'de-DE', 'tz': 'Europe/Berlin'},
+        ]
+        
+        country = random.choice(countries)
+        
+        ydl_opts = {
+            'outtmpl': 'downloads/geo_%(title)s.%(ext)s',
+            'format': 'worst[ext=mp4][filesize<50M]/worst[filesize<50M]/worst',
+            'noplaylist': True,
+            'quiet': True,
+            'no_warnings': True,
+            'geo_bypass': True,
+            'geo_bypass_country': country['country'],
+            'http_headers': {
+                'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept-Language': f"{country['lang']},en;q=0.9",
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Encoding': 'gzip, deflate',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            },
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['web'],
+                    'skip': ['dash', 'hls'],
                 }
             },
         }
