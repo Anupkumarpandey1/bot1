@@ -871,7 +871,8 @@ async def download_terabox(url, message: types.Message):
                             if 'content-disposition' in file_response.headers:
                                 cd = file_response.headers['content-disposition']
                                 if 'filename=' in cd:
-                                    filename = f"downloads/{cd.split('filename=')[1].strip('\"')}"
+                                    extracted_filename = cd.split('filename=')[1].strip('"')
+                                    filename = f"downloads/{extracted_filename}"
                             
                             total_size = 0
                             with open(filename, 'wb') as f:
